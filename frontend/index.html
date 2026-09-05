@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Klipp — cut the long take</title>
+<style>
+  :root {
+    --bg: #0b0b10; --panel: #14141d; --panel-2: #1b1b27; --border: #2a2a38;
+    --text: #eef0f6; --muted: #8b8fa3; --accent: #7c5cff; --accent-2: #ff5c9a; --good: #34d399;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif; }
+  a { color: inherit; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 28px 20px 100px; }
+  nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 60px; }
+  .brand { font-weight: 700; font-size: 20px; letter-spacing: -0.02em; text-decoration:none; }
+  .brand span { background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .nav-links { display: flex; align-items: center; gap: 10px; }
+  .nav-links a, .nav-links button { color: var(--text); text-decoration: none; font-size: 14px; }
+
+  button { font-family: inherit; }
+  button.ghost { background: transparent; border: 1px solid var(--border); color: var(--text);
+    border-radius: 8px; padding: 9px 16px; cursor: pointer; font-size: 14px; }
+  button.ghost:hover { border-color: var(--accent); }
+  button.primary { background: linear-gradient(90deg, var(--accent), var(--accent-2)); color: white;
+    border: none; border-radius: 10px; padding: 11px 20px; font-weight: 600; font-size: 14px; cursor: pointer; }
+  button.primary:disabled { opacity: .5; cursor: not-allowed; }
+
+  .hero { text-align: center; margin-bottom: 70px; }
+  .hero h1 { font-size: 46px; line-height: 1.12; margin: 0 auto 18px; max-width: 16ch; letter-spacing: -0.03em; }
+  .hero p { color: var(--muted); font-size: 17px; max-width: 52ch; margin: 0 auto 30px; }
+  .stack-badges { display:flex; justify-content:center; gap:18px; flex-wrap:wrap; color: var(--muted);
+    font-size: 13px; margin-bottom: 6px; }
+
+  h2.section-title { font-size: 26px; text-align: center; margin: 0 0 8px; letter-spacing: -0.02em; }
+  p.section-sub { text-align: center; color: var(--muted); margin: 0 0 34px; }
+
+  .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-bottom: 80px; }
+  .step { background: var(--panel); border: 1px solid var(--border); border-radius: 16px; padding: 24px; }
+  .step .n { color: var(--accent); font-weight: 700; font-size: 13px; margin-bottom: 10px; }
+  .step h3 { margin: 0 0 8px; font-size: 17px; }
+  .step p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
+
+  .caps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 80px; }
+  .cap { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 20px; }
+  .cap h4 { margin: 0 0 6px; font-size: 15px; }
+  .cap p { margin: 0; color: var(--muted); font-size: 13.5px; line-height: 1.5; }
+
+  .pricing { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-bottom: 40px; }
+  .plan { background: var(--panel); border: 1px solid var(--border); border-radius: 18px; padding: 28px;
+    display: flex; flex-direction: column; position: relative; }
+  .plan.featured { border-color: var(--accent); }
+  .plan .most-picked { position: absolute; top: -12px; left: 50%; transform: translateX(-50%);
+    background: linear-gradient(90deg, var(--accent), var(--accent-2)); color: white; font-size: 11px;
+    font-weight: 700; padding: 4px 12px; border-radius: 999px; }
+  .plan h3 { margin: 6px 0 4px; font-size: 18px; }
+  .plan .price { font-size: 34px; font-weight: 700; margin: 10px 0 2px; }
+  .plan .price span { font-size: 14px; color: var(--muted); font-weight: 400; }
+  .plan ul { list-style: none; padding: 0; margin: 18px 0 24px; flex: 1; }
+  .plan li { color: var(--muted); font-size: 13.5px; padding: 6px 0; padding-left: 22px; position: relative; }
+  .plan li::before { content: '✓'; position: absolute; left: 0; color: var(--good); }
+
+  footer { text-align: center; color: var(--muted); font-size: 12.5px; margin-top: 40px; }
+
+  /* modal */
+  .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: none;
+    align-items: center; justify-content: center; z-index: 50; padding: 20px; }
+  .overlay.open { display: flex; }
+  .modal { background: var(--panel); border: 1px solid var(--border); border-radius: 16px; padding: 28px;
+    width: 100%; max-width: 380px; }
+  .modal h3 { margin: 0 0 18px; }
+  .modal input, .modal textarea { width: 100%; background: var(--panel-2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 12px; color: var(--text); font-size: 14px; margin-bottom: 12px; font-family: inherit; }
+  .modal .error { color: #ff8a8a; font-size: 13px; margin-bottom: 10px; min-height: 1em; }
+  .modal .switch { text-align: center; font-size: 13px; color: var(--muted); margin-top: 14px; }
+  .modal .switch a { color: var(--accent); cursor: pointer; }
+  .modal .close { float: right; background: none; border: none; color: var(--muted); font-size: 18px; cursor: pointer; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav>
+    <a class="brand" href="/">Klipp<span>.</span></a>
+    <div class="nav-links" id="navLinks">
+      <button class="ghost" onclick="openAuth('login')">Sign in</button>
+      <button class="primary" onclick="openAuth('signup')">Start free now</button>
+    </div>
+  </nav>
+
+  <div class="hero">
+    <h1>Turn one long video into a month of clips</h1>
+    <div class="stack-badges">Whisper &nbsp;·&nbsp; GPT &nbsp;·&nbsp; Audio-Signalanalyse</div>
+    <p>Everything creators need to clip, caption and post long-form video — with total control.</p>
+    <button class="primary" onclick="startFree()">Start free now</button>
+  </div>
+
+  <h2 class="section-title">Three moves, no timeline</h2>
+  <p class="section-sub">THE WORKFLOW</p>
+  <div class="steps">
+    <div class="step"><div class="n">01</div><h3>Drop the long take</h3>
+      <p>Upload a file — podcasts, streams and webinars up to a few hours.</p></div>
+    <div class="step"><div class="n">02</div><h3>Klipp ranks every moment</h3>
+      <p>Hooks and high-energy sections get scored second by second, then cut clean.</p></div>
+    <div class="step"><div class="n">03</div><h3>Publish everywhere</h3>
+      <p>Captions, auto-reframing and 9:16, 1:1, 16:9 exports rendered in one pass.</p></div>
+  </div>
+
+  <h2 class="section-title">An editor that never sleeps</h2>
+  <p class="section-sub">CAPABILITIES</p>
+  <div class="caps">
+    <div class="cap"><h4>Hook detection</h4><p>Reads energy, pacing and pauses to surface the seconds people actually stay for.</p></div>
+    <div class="cap"><h4>Word-accurate captions</h4><p>With an OpenAI key connected: real word-timed captions, styled and burned in.</p></div>
+    <div class="cap"><h4>Auto reframing</h4><p>Keeps the speaker centered as the frame moves from wide to vertical.</p></div>
+    <div class="cap"><h4>Silence trim</h4><p>Dead air and long pauses removed so the pace never sags.</p></div>
+    <div class="cap"><h4>Batch rendering</h4><p>Every shortlisted moment rendered in 9:16, 1:1 and 16:9 in one pass.</p></div>
+    <div class="cap"><h4>Team workspace</h4><p>Studio plan — shared libraries and priority rendering. <a href="#pricing" style="color:var(--accent);">Talk to us</a>.</p></div>
+  </div>
+
+  <h2 class="section-title" id="pricing">Pick your pace</h2>
+  <p class="section-sub">PRICING</p>
+  <div class="pricing">
+    <div class="plan">
+      <h3>Free</h3>
+      <div class="price">€0<span> / forever</span></div>
+      <ul>
+        <li>3 clips per month</li>
+        <li>Auto captions*</li>
+        <li>1080p export</li>
+      </ul>
+      <button class="ghost" onclick="startFree()">Start free</button>
+    </div>
+    <div class="plan featured">
+      <div class="most-picked">MOST PICKED</div>
+      <h3>Creator</h3>
+      <div class="price">€24<span> / month</span></div>
+      <ul>
+        <li>Unlimited clips</li>
+        <li>4K export</li>
+        <li>Auto reframing</li>
+      </ul>
+      <button class="primary" onclick="startCheckout('creator')">Go Creator</button>
+    </div>
+    <div class="plan">
+      <h3>Studio</h3>
+      <div class="price">€79<span> / month</span></div>
+      <ul>
+        <li>5 seats + team queue</li>
+        <li>Batch export &amp; API</li>
+        <li>Priority rendering</li>
+      </ul>
+      <button class="ghost" onclick="openContact()">Talk to us</button>
+    </div>
+  </div>
+
+  <footer>
+    Klipp — cut the long take. © 2026. *Word-accurate captions require an OpenAI key configured by the operator; without one, clips still get hook-detection, reframing and silence trim from offline audio analysis.
+  </footer>
+</div>
+
+<!-- Auth modal -->
+<div class="overlay" id="authOverlay">
+  <div class="modal">
+    <button class="close" onclick="closeAuth()">✕</button>
+    <h3 id="authTitle">Create your account</h3>
+    <div class="error" id="authError"></div>
+    <input type="email" id="authEmail" placeholder="Email" autocomplete="email" />
+    <input type="password" id="authPassword" placeholder="Password (min. 8 characters)" autocomplete="current-password" />
+    <button class="primary" style="width:100%;" id="authSubmit" onclick="submitAuth()">Create account</button>
+    <div class="switch" id="authSwitch"></div>
+  </div>
+</div>
+
+<!-- Contact modal (Studio) -->
+<div class="overlay" id="contactOverlay">
+  <div class="modal">
+    <button class="close" onclick="closeContact()">✕</button>
+    <h3>Talk to us about Studio</h3>
+    <div class="error" id="contactError"></div>
+    <textarea id="contactMessage" rows="4" placeholder="Team size, what you're building, anything else..."></textarea>
+    <button class="primary" style="width:100%;" onclick="submitContact()">Send</button>
+  </div>
+</div>
+
+<script>
+let authMode = 'signup';
+let pendingAction = null; // 'app' | 'creator'
+
+function openAuth(mode) {
+  authMode = mode;
+  document.getElementById('authError').textContent = '';
+  document.getElementById('authEmail').value = '';
+  document.getElementById('authPassword').value = '';
+  updateAuthModalText();
+  document.getElementById('authOverlay').classList.add('open');
+}
+function closeAuth() { document.getElementById('authOverlay').classList.remove('open'); pendingAction = null; }
+
+function updateAuthModalText() {
+  const isSignup = authMode === 'signup';
+  document.getElementById('authTitle').textContent = isSignup ? 'Create your account' : 'Sign in';
+  document.getElementById('authSubmit').textContent = isSignup ? 'Create account' : 'Sign in';
+  document.getElementById('authSwitch').innerHTML = isSignup
+    ? `Already have an account? <a onclick="authMode='login'; updateAuthModalText()">Sign in</a>`
+    : `No account yet? <a onclick="authMode='signup'; updateAuthModalText()">Create one</a>`;
+}
+
+async function submitAuth() {
+  const email = document.getElementById('authEmail').value.trim();
+  const password = document.getElementById('authPassword').value;
+  const errEl = document.getElementById('authError');
+  errEl.textContent = '';
+  try {
+    const resp = await fetch(`/api/auth/${authMode === 'signup' ? 'signup' : 'login'}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    const data = await resp.json();
+    if (!resp.ok) { errEl.textContent = data.error || 'Something went wrong'; return; }
+    closeAuth();
+    await afterLogin();
+  } catch (e) {
+    errEl.textContent = 'Network error';
+  }
+}
+
+async function afterLogin() {
+  if (pendingAction === 'creator') {
+    pendingAction = null;
+    goToCheckout('creator');
+  } else {
+    window.location.href = '/app.html';
+  }
+}
+
+function startFree() {
+  fetch('/api/auth/me').then(r => {
+    if (r.ok) { window.location.href = '/app.html'; }
+    else { pendingAction = 'app'; openAuth('signup'); }
+  });
+}
+
+function startCheckout(plan) {
+  fetch('/api/auth/me').then(r => {
+    if (r.ok) { goToCheckout(plan); }
+    else { pendingAction = plan; openAuth('signup'); }
+  });
+}
+
+async function goToCheckout(plan) {
+  try {
+    const resp = await fetch('/api/billing/checkout', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ plan }),
+    });
+    const data = await resp.json();
+    if (!resp.ok) { alert(data.error || 'Checkout unavailable'); return; }
+    window.location.href = data.checkout_url;
+  } catch (e) {
+    alert('Network error starting checkout');
+  }
+}
+
+function openContact() {
+  fetch('/api/auth/me').then(r => {
+    if (r.ok) { document.getElementById('contactOverlay').classList.add('open'); }
+    else { pendingAction = 'contact'; openAuth('signup'); }
+  });
+}
+function closeContact() { document.getElementById('contactOverlay').classList.remove('open'); }
+
+async function submitContact() {
+  const message = document.getElementById('contactMessage').value.trim();
+  const errEl = document.getElementById('contactError');
+  try {
+    const resp = await fetch('/api/billing/contact-studio', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message }),
+    });
+    const data = await resp.json();
+    if (!resp.ok) { errEl.textContent = data.error || 'Something went wrong'; return; }
+    closeContact();
+    alert("Thanks — we'll follow up by email.");
+  } catch (e) {
+    errEl.textContent = 'Network error';
+  }
+}
+
+// nav: show account link if already logged in; open login modal if ?login=1
+fetch('/api/auth/me').then(r => {
+  if (r.ok) {
+    document.getElementById('navLinks').innerHTML =
+      `<a href="/account.html" class="ghost" style="border:1px solid var(--border); border-radius:8px; padding:9px 16px;">My account</a>
+       <button class="primary" onclick="window.location.href='/app.html'">Go to app</button>`;
+  }
+});
+if (new URLSearchParams(window.location.search).get('login')) {
+  openAuth('login');
+}
+</script>
+</body>
+</html>

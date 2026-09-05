@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Klipp — Mein Konto</title>
+<style>
+  :root {
+    --bg: #0b0b10; --panel: #14141d; --panel-2: #1b1b27; --border: #2a2a38;
+    --text: #eef0f6; --muted: #8b8fa3; --accent: #7c5cff; --accent-2: #ff5c9a; --good: #34d399;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif; }
+  .wrap { max-width: 640px; margin: 0 auto; padding: 40px 20px 80px; }
+  header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 36px; }
+  .brand { font-weight: 700; font-size: 20px; text-decoration: none; color: inherit; }
+  .brand span { background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    -webkit-background-clip: text; background-clip: text; color: transparent; }
+  a.back { color: var(--muted); font-size: 13.5px; text-decoration: none; }
+  h1 { font-size: 26px; margin: 0 0 24px; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 16px; padding: 24px; margin-bottom: 18px; }
+  .row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .row:last-child { border-bottom: none; }
+  .label { color: var(--muted); font-size: 13.5px; }
+  .value { font-weight: 600; }
+  .plan-tag { display: inline-block; padding: 4px 12px; border-radius: 999px; font-size: 12.5px; font-weight: 700;
+    background: rgba(124,92,255,.15); color: var(--accent); text-transform: capitalize; }
+  button { font-family: inherit; cursor: pointer; }
+  button.primary { background: linear-gradient(90deg, var(--accent), var(--accent-2)); color: white;
+    border: none; border-radius: 10px; padding: 11px 20px; font-weight: 600; font-size: 14px; }
+  button.ghost { background: transparent; border: 1px solid var(--border); color: var(--text);
+    border-radius: 8px; padding: 10px 18px; font-size: 14px; }
+  .bar-bg { background: var(--panel-2); border-radius: 999px; height: 8px; overflow: hidden; margin-top: 8px; }
+  .bar-fill { background: linear-gradient(90deg, var(--accent), var(--accent-2)); height: 100%; }
+  .msg { font-size: 13px; margin-top: 10px; }
+  .msg.error { color: #ff8a8a; }
+  .msg.ok { color: var(--good); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a class="brand" href="/">Klipp<span>.</span></a>
+    <a class="back" href="/app.html">← Zur App</a>
+  </header>
+
+  <h1>Mein Konto</h1>
+
+  <div class="card" id="accountCard">Lade…</div>
+
+  <div class="card" id="billingCard" style="display:none;">
+    <div class="row"><div class="label">Plan</div><div class="value" id="planLabel"></div></div>
+    <div id="billingActions" style="margin-top:16px; display:flex; gap:10px; flex-wrap:wrap;"></div>
+    <div class="msg" id="billingMsg"></div>
+  </div>
+
+  <div class="card">
+    <button class="ghost" onclick="logout()">Abmelden</button>
+  </div>
+</div>
+
+<script>
+async function load() {
+  const resp = await fetch('/api/auth/me');
+  if (!resp.ok) { window.location.href = '/?login=1'; return; }
+  const user = await resp.json();
+  renderAccount(user);
+}
+
+function renderAccount(user) {
+  const u = user.usage;
+  const acc = document.getElementById('accountCard');
+  const usageHtml = u.plan === 'free'
+    ? `<div class="row"><div class="label">Clips genutzt (30 Tage)</div><div class="value">${u.clips_used} / ${u.clips_limit}</div></div>
+       <div class="bar-bg"><div class="bar-fill" style="width:${Math.min(100, 100*u.clips_used/u.clips_limit)}%"></div></div>`
+    : `<div class="row"><div class="label">Clips diesen Zeitraum</div><div class="value">${u.clips_used} (unbegrenzt)</div></div>`;
+
+  acc.innerHTML = `
+    <div class="row"><div class="label">Email</div><div class="value">${user.email}</div></div>
+    <div class="row"><div class="label">Max. Auflösung</div><div class="value">${u.max_resolution}</div></div>
+    ${usageHtml}
+  `;
+
+  const planLabel = document.getElementById('planLabel');
+  planLabel.innerHTML = `<span class="plan-tag">${u.plan}</span>` +
+    (user.subscription_status ? ` <span style="color:var(--muted); font-size:12.5px;">(${user.subscription_status})</span>` : '');
+
+  const actions = document.getElementById('billingActions');
+  actions.innerHTML = '';
+  if (u.plan === 'free') {
+    const btn = document.createElement('button');
+    btn.className = 'primary'; btn.textContent = 'Auf Creator upgraden (€24/Monat)';
+    btn.onclick = () => checkout('creator');
+    actions.appendChild(btn);
+  } else {
+    const btn = document.createElement('button');
+    btn.className = 'ghost'; btn.textContent = 'Abo verwalten (Stripe Portal)';
+    btn.onclick = () => portal();
+    actions.appendChild(btn);
+  }
+  document.getElementById('billingCard').style.display = 'block';
+}
+
+async function checkout(plan) {
+  const msg = document.getElementById('billingMsg');
+  msg.textContent = ''; msg.className = 'msg';
+  try {
+    const resp = await fetch('/api/billing/checkout', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ plan }),
+    });
+    const data = await resp.json();
+    if (!resp.ok) { msg.textContent = data.error; msg.className = 'msg error'; return; }
+    window.location.href = data.checkout_url;
+  } catch (e) {
+    msg.textContent = 'Netzwerkfehler'; msg.className = 'msg error';
+  }
+}
+
+async function portal() {
+  const msg = document.getElementById('billingMsg');
+  msg.textContent = ''; msg.className = 'msg';
+  try {
+    const resp = await fetch('/api/billing/portal', { method: 'POST' });
+    const data = await resp.json();
+    if (!resp.ok) { msg.textContent = data.error; msg.className = 'msg error'; return; }
+    window.location.href = data.portal_url;
+  } catch (e) {
+    msg.textContent = 'Netzwerkfehler'; msg.className = 'msg error';
+  }
+}
+
+async function logout() {
+  await fetch('/api/auth/logout', { method: 'POST' });
+  window.location.href = '/';
+}
+
+const params = new URLSearchParams(window.location.search);
+if (params.get('checkout') === 'success') {
+  // Stripe webhooks can take a moment to land — a quick re-check covers most cases.
+  setTimeout(load, 1500);
+}
+
+load();
+</script>
+</body>
+</html>

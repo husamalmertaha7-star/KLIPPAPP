@@ -1,0 +1,13 @@
+# Core web framework (already available in this sandbox; pinned here for real deployments)
+Flask>=3.0
+Werkzeug>=3.0
+
+# Signal / vision processing (already available in this sandbox)
+numpy>=1.26
+scipy>=1.11
+opencv-python-headless>=4.9
+
+# Only needed if you enable the OpenAI-powered transcription/ranking backend.
+# Not importable/testable inside the build sandbox (no network there), but used
+# at real deployment time when OPENAI_API_KEY is set.
+requests>=2.31

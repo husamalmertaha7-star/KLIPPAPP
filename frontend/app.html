@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Klipp — cut the long take</title>
+<style>
+  :root {
+    --bg: #0b0b10;
+    --panel: #14141d;
+    --panel-2: #1b1b27;
+    --border: #2a2a38;
+    --text: #eef0f6;
+    --muted: #8b8fa3;
+    --accent: #7c5cff;
+    --accent-2: #ff5c9a;
+    --good: #34d399;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif; }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 40px 20px 80px; }
+  header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 36px; }
+  .brand { font-weight: 700; font-size: 20px; letter-spacing: -0.02em; }
+  .brand span { background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .badge-mode { font-size: 12px; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--border);
+    color: var(--muted); }
+  .badge-mode.ai { color: var(--good); border-color: rgba(52,211,153,.4); }
+  h1 { font-size: 34px; line-height: 1.15; margin: 0 0 10px; letter-spacing: -0.02em; }
+  p.lead { color: var(--muted); margin: 0 0 28px; max-width: 60ch; }
+
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 18px; padding: 28px; }
+
+  .dropzone { border: 1.5px dashed var(--border); border-radius: 14px; padding: 40px 20px;
+    text-align: center; cursor: pointer; transition: border-color .15s, background .15s; }
+  .dropzone:hover, .dropzone.drag { border-color: var(--accent); background: rgba(124,92,255,.06); }
+  .dropzone input { display: none; }
+  .dropzone .hint { color: var(--muted); font-size: 13px; margin-top: 6px; }
+
+  button.primary { background: linear-gradient(90deg, var(--accent), var(--accent-2)); color: white;
+    border: none; border-radius: 10px; padding: 12px 20px; font-weight: 600; font-size: 14px;
+    cursor: pointer; }
+  button.primary:disabled { opacity: .5; cursor: not-allowed; }
+
+  .progress-wrap { margin-top: 22px; display: none; }
+  .progress-bar { height: 8px; border-radius: 999px; background: var(--panel-2); overflow: hidden; }
+  .progress-bar > div { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    width: 0%; transition: width .3s; }
+  .progress-label { font-size: 13px; color: var(--muted); margin-top: 8px; }
+
+  .warnings { margin-top: 14px; font-size: 13px; color: #f5c453; }
+
+  .results { margin-top: 36px; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 18px; }
+  .clip-card { background: var(--panel); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; }
+  .clip-thumb { aspect-ratio: 16/9; background: #000 center/cover no-repeat; position: relative; }
+  .clip-score { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,.6);
+    padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; color: var(--good); }
+  .clip-body { padding: 14px 16px 18px; }
+  .clip-label { font-weight: 700; font-size: 15px; margin-bottom: 2px; }
+  .clip-meta { color: var(--muted); font-size: 12.5px; margin-bottom: 12px; }
+  .clip-dl { display: flex; gap: 8px; flex-wrap: wrap; }
+  .clip-dl a { font-size: 12.5px; color: var(--text); text-decoration: none; border: 1px solid var(--border);
+    border-radius: 8px; padding: 6px 10px; }
+  .clip-dl a:hover { border-color: var(--accent); }
+  .cap-flag { display:inline-block; margin-top:10px; font-size: 11.5px; padding: 3px 8px; border-radius: 999px; }
+  .cap-flag.on { color: var(--good); background: rgba(52,211,153,.12); }
+  .cap-flag.off { color: var(--muted); background: rgba(255,255,255,.04); }
+
+  footer { margin-top: 50px; color: var(--muted); font-size: 12.5px; }
+  footer a { color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap" id="wrap" style="display:none;">
+  <header>
+    <div class="brand"><a href="/" style="color:inherit; text-decoration:none;">Klipp<span>.</span></a></div>
+    <div style="display:flex; align-items:center; gap:12px;">
+      <div class="badge-mode" id="modeBadge">Modus wird geprüft…</div>
+      <a href="/account.html" style="color:var(--muted); font-size:13px; text-decoration:none; border:1px solid var(--border); border-radius:8px; padding:6px 12px;">Mein Konto</a>
+    </div>
+  </header>
+
+  <h1>Turn one long video into a month of clips.</h1>
+  <p class="lead">Upload eine lange Aufnahme (Podcast, Stream, Webinar). Klipp findet automatisch die stärksten Momente,
+    schneidet sie zu, zentriert das Bild auf die sprechende Person und exportiert 9:16 / 1:1 / 16:9 — direkt zum Download.</p>
+
+  <div class="card" id="usageCard" style="margin-bottom:18px; padding:16px 20px; display:none;"></div>
+
+  <div class="card">
+    <div class="dropzone" id="dropzone">
+      <div>📼 Video hierher ziehen oder klicken zum Auswählen</div>
+      <div class="hint">MP4, MOV, MKV, WebM · bis 1&nbsp;GB</div>
+      <input type="file" id="fileInput" accept=".mp4,.mov,.mkv,.webm,.m4v" />
+    </div>
+    <div style="margin-top:18px; display:flex; align-items:center; gap:12px;">
+      <button class="primary" id="startBtn" disabled>Clips erzeugen</button>
+      <span id="fileName" style="color:var(--muted); font-size:13px;"></span>
+    </div>
+
+    <div class="progress-wrap" id="progressWrap">
+      <div class="progress-bar"><div id="progressFill"></div></div>
+      <div class="progress-label" id="progressLabel">Warte…</div>
+    </div>
+    <div class="warnings" id="warnings"></div>
+  </div>
+
+  <div class="results" id="results"></div>
+
+  <footer>
+    Klipp — cut the long take. Ohne <code>OPENAI_API_KEY</code> läuft die Highlight-Erkennung offline über
+    Audio-Signalanalyse (Lautstärke/Tempo/Pausen); mit Key werden echte wortgenaue Untertitel + GPT-Ranking genutzt.
+  </footer>
+</div>
+
+<script>
+const dropzone = document.getElementById('dropzone');
+const fileInput = document.getElementById('fileInput');
+const startBtn = document.getElementById('startBtn');
+const fileNameEl = document.getElementById('fileName');
+const progressWrap = document.getElementById('progressWrap');
+const progressFill = document.getElementById('progressFill');
+const progressLabel = document.getElementById('progressLabel');
+const resultsEl = document.getElementById('results');
+const warningsEl = document.getElementById('warnings');
+const modeBadge = document.getElementById('modeBadge');
+
+let selectedFile = null;
+const usageCard = document.getElementById('usageCard');
+const wrapEl = document.getElementById('wrap');
+
+async function guardAndLoad() {
+  try {
+    const resp = await fetch('/api/auth/me');
+    if (!resp.ok) { window.location.href = '/?login=1'; return; }
+    const user = await resp.json();
+    renderUsage(user);
+    wrapEl.style.display = 'block';
+  } catch (e) {
+    window.location.href = '/?login=1';
+  }
+}
+
+function renderUsage(user) {
+  const u = user.usage;
+  usageCard.style.display = 'block';
+  if (u.plan === 'free') {
+    usageCard.innerHTML = `<strong>Free-Plan</strong> — ${u.clips_used}/${u.clips_limit} Clips diesen Monat verbraucht · Export in 1080p.
+      <a href="/account.html" style="color:var(--accent);">Auf Creator upgraden</a> für unbegrenzte Clips + 4K.`;
+  } else {
+    usageCard.innerHTML = `<strong>${u.plan === 'studio' ? 'Studio' : 'Creator'}-Plan</strong> — unbegrenzte Clips · Export bis 4K.`;
+  }
+}
+
+guardAndLoad();
+
+fetch('/api/config').then(r => r.json()).then(cfg => {
+  if (cfg.ai_mode_available) {
+    modeBadge.textContent = 'AI-Modus aktiv (OpenAI-Key erkannt)';
+    modeBadge.classList.add('ai');
+  } else {
+    modeBadge.textContent = 'Offline-Modus (kein API-Key gesetzt)';
+  }
+}).catch(() => { modeBadge.textContent = 'Modus unbekannt'; });
+
+dropzone.addEventListener('click', () => fileInput.click());
+['dragenter','dragover'].forEach(evt => dropzone.addEventListener(evt, e => {
+  e.preventDefault(); dropzone.classList.add('drag');
+}));
+['dragleave','drop'].forEach(evt => dropzone.addEventListener(evt, e => {
+  e.preventDefault(); dropzone.classList.remove('drag');
+}));
+dropzone.addEventListener('drop', e => {
+  if (e.dataTransfer.files.length) setFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', () => {
+  if (fileInput.files.length) setFile(fileInput.files[0]);
+});
+
+function setFile(f) {
+  selectedFile = f;
+  fileNameEl.textContent = f.name + ' · ' + (f.size / (1024*1024)).toFixed(1) + ' MB';
+  startBtn.disabled = false;
+}
+
+startBtn.addEventListener('click', async () => {
+  if (!selectedFile) return;
+  startBtn.disabled = true;
+  resultsEl.innerHTML = '';
+  warningsEl.textContent = '';
+  progressWrap.style.display = 'block';
+  progressFill.style.width = '0%';
+  progressLabel.textContent = 'Lade hoch…';
+
+  const form = new FormData();
+  form.append('video', selectedFile);
+
+  let jobId;
+  try {
+    const resp = await fetch('/api/jobs', { method: 'POST', body: form });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || 'Upload fehlgeschlagen');
+    jobId = data.job_id;
+  } catch (err) {
+    progressLabel.textContent = 'Fehler: ' + err.message;
+    startBtn.disabled = false;
+    return;
+  }
+
+  poll(jobId);
+});
+
+async function poll(jobId) {
+  try {
+    const resp = await fetch(`/api/jobs/${jobId}`);
+    const job = await resp.json();
+    if (job.status === 'error') {
+      progressLabel.textContent = 'Fehler: ' + job.error;
+      startBtn.disabled = false;
+      return;
+    }
+    progressFill.style.width = (job.progress || 0) + '%';
+    progressLabel.textContent = (job.stage || job.status) + '…';
+
+    if (job.status === 'done') {
+      renderResults(jobId, job.manifest);
+      startBtn.disabled = false;
+      fetch('/api/auth/me').then(r => r.json()).then(renderUsage).catch(() => {});
+      return;
+    }
+    setTimeout(() => poll(jobId), 1200);
+  } catch (err) {
+    setTimeout(() => poll(jobId), 2000);
+  }
+}
+
+function renderResults(jobId, manifest) {
+  progressLabel.textContent = `Fertig — ${manifest.clips.length} Clips (${manifest.mode === 'ai' ? 'AI-Modus' : 'Offline-Modus'})`;
+  if (manifest.warnings && manifest.warnings.length) {
+    warningsEl.textContent = '⚠ ' + manifest.warnings.join(' · ');
+  }
+  resultsEl.innerHTML = '';
+  manifest.clips.forEach(clip => {
+    const card = document.createElement('div');
+    card.className = 'clip-card';
+    const thumbUrl = clip.thumbnail ? `/api/jobs/${jobId}/download/${clip.thumbnail}` : '';
+    const dlLinks = Object.entries(clip.files).map(([aspect, path]) =>
+      `<a href="/api/jobs/${jobId}/download/${path}" download>${aspect.replace('x',':')}</a>`
+    ).join('');
+    card.innerHTML = `
+      <div class="clip-thumb" style="background-image:url('${thumbUrl}')">
+        <div class="clip-score">${Math.round(clip.score)}%</div>
+      </div>
+      <div class="clip-body">
+        <div class="clip-label">${clip.label}</div>
+        <div class="clip-meta">${clip.duration}s · ${formatTime(clip.start)}–${formatTime(clip.end)}</div>
+        <div class="clip-dl">${dlLinks}</div>
+        <div class="cap-flag ${clip.has_captions ? 'on' : 'off'}">${clip.has_captions ? '✓ Untertitel' : 'Ohne Untertitel'}</div>
+      </div>`;
+    resultsEl.appendChild(card);
+  });
+}
+
+function formatTime(s) {
+  const m = Math.floor(s / 60);
+  const sec = Math.floor(s % 60);
+  return `${m}:${sec.toString().padStart(2,'0')}`;
+}
+</script>
+</body>
+</html>
