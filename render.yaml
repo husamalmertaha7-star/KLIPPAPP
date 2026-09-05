@@ -1,0 +1,30 @@
+# Render Blueprint — lets you deploy this whole app by connecting your repo
+# and clicking "Apply" on this blueprint, instead of configuring a Web
+# Service by hand. See README.md "Deploying" for the full walkthrough.
+#
+# Free tier caveats (as of this writing — verify current limits in your
+# Render dashboard, they change): no persistent disk, so the SQLite database
+# (accounts, plans, clip usage) and any rendered clips are wiped whenever the
+# service restarts or redeploys; the service also spins down after 15 min of
+# inactivity and takes ~1 min to wake back up. Fine for a demo/preview link;
+# upgrade to a paid instance type + attach a disk mounted at /app/jobs before
+# relying on it for real signups/payments.
+services:
+  - type: web
+    name: klipp
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true       # Render generates a random, stable secret for you
+      - key: APP_BASE_URL
+        sync: false               # fill in with your actual Render URL after first deploy
+      - key: OPENAI_API_KEY
+        sync: false               # optional — omit to run hook-detection offline only
+      - key: STRIPE_SECRET_KEY
+        sync: false               # optional — omit to run Free-plan only, no billing
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: STRIPE_PRICE_CREATOR
+        sync: false
