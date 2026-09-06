@@ -2,8 +2,8 @@
 
   1. extract audio + analyze signal (offline, always runs)
   2. transcribe (OpenAI, only if OPENAI_API_KEY set) -> word timestamps
-  3. select highlight clips (GPT-ranked transcript if available, else
-     audio-signal heuristic)
+  3. select highlight clips (Claude- or GPT-ranked transcript if available,
+     else audio-signal heuristic)
   4. per clip: trim internal silence, detect speaker face, render 3 aspect
      ratios with burned-in captions (if available) and a score badge
   5. write manifest.json describing everything that was produced
@@ -19,7 +19,10 @@ from highlight_scoring import ClipCandidate, select_clips
 from reframe import detect_face_center_x
 from render import aspect_sizes, build_keep_segments, trim_to_file, render_aspect, make_thumbnail
 from captions import build_ass
-from transcription import openai_enabled, transcribe_openai, rank_hooks_with_gpt, Word
+from transcription import (
+    openai_enabled, transcribe_openai, rank_hooks_with_gpt,
+    anthropic_enabled, rank_hooks_with_claude, Word,
+)
 
 
 def remap_words_to_trimmed(segments, words: list[Word]) -> list[Word]:
@@ -67,10 +70,15 @@ def run_pipeline(job_dir: str, input_path: str, progress_cb, n_clips: int = 6,
     progress_cb("Scoring hook moments", 20)
     clips: list[ClipCandidate] = []
     if words and mode == "ai":
+        ranked = None
         try:
-            ranked = rank_hooks_with_gpt(words, n_clips=n_clips)
+            # Prefer Claude when ANTHROPIC_API_KEY is set, else fall back to GPT.
+            if anthropic_enabled():
+                ranked = rank_hooks_with_claude(words, n_clips=n_clips)
+            elif openai_enabled():
+                ranked = rank_hooks_with_gpt(words, n_clips=n_clips)
         except Exception as exc:  # noqa: BLE001
-            warnings.append(f"GPT ranking failed, using audio heuristic instead: {exc}")
+            warnings.append(f"AI ranking failed, using audio heuristic instead: {exc}")
             ranked = None
         if ranked:
             for i, c in enumerate(ranked):
