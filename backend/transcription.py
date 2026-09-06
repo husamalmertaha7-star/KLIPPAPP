@@ -66,6 +66,58 @@ def transcribe_openai(audio_path: str, api_key: str | None = None, timeout: int 
             for w in words]
 
 
+def anthropic_enabled() -> bool:
+    return bool(os.environ.get("ANTHROPIC_API_KEY"))
+
+
+def rank_hooks_with_claude(words: list[Word], api_key: str | None = None,
+                            n_clips: int = 6, timeout: int = 60):
+    """Alternative to rank_hooks_with_gpt: asks Claude instead of ChatGPT to pick
+    the best moments from the transcript. Swapped in automatically when
+    ANTHROPIC_API_KEY is set (see pipeline.py). Same network caveat as the
+    OpenAI calls above — implemented, not sandbox-testable.
+    """
+    api_key = api_key or os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key or not words:
+        return None
+
+    import requests
+
+    transcript_lines = "\n".join(f"[{w.start:.1f}] {w.text}" for w in words)
+    prompt = (
+        "You are selecting short-form highlight clips from a long-form video "
+        "transcript with word start times in seconds. Respond with ONLY a JSON "
+        f"array (no other text, no markdown fences) of up to {n_clips} objects: "
+        '{"start": float, "end": float, "label": "short hook label", '
+        '"reason": "why this moment works as a clip"}. '
+        "Clips should be 15-60 seconds, non-overlapping, ordered by start time, "
+        "and chosen for hooks, punchlines, or payoffs. "
+        "Transcript:\n" + transcript_lines[:12000]
+    )
+    url = "https://api.anthropic.com/v1/messages"
+    headers = {
+        "x-api-key": api_key,
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json",
+    }
+    body = {
+        "model": "claude-haiku-4-5-20251001",
+        "max_tokens": 2048,
+        "messages": [{"role": "user", "content": prompt}],
+    }
+    resp = requests.post(url, headers=headers, json=body, timeout=timeout)
+    if resp.status_code != 200:
+        raise RuntimeError(f"Claude ranking failed: {resp.status_code} {resp.text[:500]}")
+    content = resp.json()["content"][0]["text"].strip()
+    # Claude sometimes wraps JSON in ```json fences despite instructions — strip them.
+    if content.startswith("```"):
+        content = content.strip("`")
+        if content.startswith("json"):
+            content = content[4:]
+    parsed = json.loads(content)
+    return parsed if isinstance(parsed, list) else parsed.get("clips", [])
+
+
 def rank_hooks_with_gpt(words: list[Word], api_key: str | None = None,
                          n_clips: int = 6, timeout: int = 60):
     """Optional: ask a GPT model to pick the best moments from the transcript.
