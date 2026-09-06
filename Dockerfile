@@ -34,4 +34,4 @@ WORKDIR /app/backend
 # so multiple gunicorn workers would each have their own job list and break
 # status polling. Fine for the free-tier CPU budget this targets; revisit
 # (e.g. move job state into the SQLite db) before scaling workers up.
-CMD gunicorn --bind 0.0.0.0:${PORT:-10000} --workers 1 --threads 8 --timeout 300 app:app
+CMD ["sh", "-c", "python -m gunicorn --bind 0.0.0.0:${PORT:-10000} --workers 1 --threads 8 --timeout 300 app:app"]
